@@ -1,0 +1,46 @@
+{
+  "base": "7d9e6e28686df0007489d74edd653364e8f7e912",
+  "python_image": "python@sha256:e0b3f8d16a5ccfbe602d5c94297e5dbcda2ec256edca2b80fcd44e39e1ff6feb",
+  "rust_image": "rust@sha256:4334151ca823b4a52237f3a2d1b16973d6c3c0dd2a7e0ec66a9a8947713d4fa4",
+  "source_sha256": {
+    "Cargo.lock": "525b3330ed4dc739d0103f8431e1a4daadb3498ab06d63995293113bbaece68f",
+    "pixi.lock": "a076584950927eb3e053978e151b7bf30d943b295010be6d2d5999b677ed2337",
+    "pyproject.toml": "7e1cffb1946bf7c20eb28e60183ef2ef348a06ef32c5fe07cad37040adbf1463",
+    "scripts/coverage-with-python.sh": "9895f7b9f513f773d235fdf7a9bcc4189e8539ad05376b9e38942b05d215a212",
+    "crates/within/tests/fixtures/preconditioner_v21.postcard": "0c2ad5ac9b88b368ad50758334a9546678950317b23541c97ad19d8c9e9cfdd2",
+    "crates/within/tests/fixtures/preconditioner_v20.postcard": "80895f1b51868290b5dd6b7b249cc328f92e0d542786c41e633299d4cd66a5c2",
+    "crates/within/tests/fixtures/preconditioner_v19.postcard": "0bcb4327e7d26a5bdf69a593c86b86f9eaf4e23c522c625985220add99474753",
+    "crates/within/tests/fixtures/preconditioner_v12.postcard": "a275875f52c36a5f44adfb63bf407b3a90a31ab563a56c4e6d2552c82595cb76"
+  },
+  "artifact_compressed_bytes": 337128751,
+  "artifact_unpacked_bytes": 1714623053,
+  "calibration_cpu": 3,
+  "calibration_memory_gib": 12,
+  "projection_factors": {
+    "coverage": 6.0,
+    "clippy": 1.0,
+    "msrv": 1.5,
+    "python_extension": 1.5,
+    "release": 2.5,
+    "semver": 3.0
+  },
+  "projection_extra_seconds": 150,
+  "projection_multiplier": 1.1,
+  "target_seconds": 3000,
+  "absolute_seconds": 3600,
+  "local_attempts_reopened": false,
+  "hosted_attempts": "New issue426: one independently reviewed job plus at most one source-proven correction; not a retry425.",
+  "privacy": "Only public official inputs and synthetic fixtures; no private cache or image export",
+  "prior_run": 41184289673,
+  "coverage_projection_basis": "ActualH486 failedcoverage380.67s=4.4746*T_debug85.0744;6xreserve plus separatelymeasuredtests and10%margin; fullscope unchanged",
+  "patch_sha256": "c3d745cf8bc1d629722e6139aadc37f2aa5554d2050599fd1da4081e048e9b30",
+  "candidate_sha256": {
+    "CHANGELOG.md": "b8c817ebcad922dcf17caeaeda247ea3b5cea0128a66685a87c35f1a26d6a656",
+    "crates/within-py/src/config.rs": "76bd2efa7f3e4f027127d2b73325aede314096530a6fc615416df5bcea09d834",
+    "crates/within/src/block_elim/schur.rs": "d09e00b360639904aa9649e858d48f90f5877063c05eacd4b7ea5e354a28babf",
+    "crates/within/src/config.rs": "9002cfac6044bb8daea21501cbc82b719576a0ebc146cae1e395c8575c5ea810",
+    "crates/within/tests/solver.rs": "b3d183768fc6e7fa4647747ee5cc78bfe99ba45b6dc71d183951b73e52a7eb72",
+    "tests/test_error_handling.py": "bb01edba4c8e39c7cfe06931fed985152cba9668a7e366858148c74a927e0cd5",
+    "tests/test_preconditioner.py": "e3e825ee8a722e16ff18f30798b1370cba6d00b90cd5087f4ba591e726d3889d"
+  }
+}

@@ -1,0 +1,25 @@
+name: Validate nonzero Schur split
+on:
+  push:
+    branches: [validate-nonzero-schur-split-426]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - name: Anchor the job clock
+        run: echo "VALIDATION_JOB_STARTED_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: packet
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: py-econometrics/within
+          ref: 7d9e6e28686df0007489d74edd653364e8f7e912
+          path: source
+          persist-credentials: false
+      - name: Calibrate and validate the full change in Docker
+        run: python3 packet/host.py

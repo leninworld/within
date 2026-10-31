@@ -1,0 +1,249 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 795b958edfd4f863b07b31eebd827943fcf0daa2..b6fe690a3f041999a325fd590e9504163651f188 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,6 +11,8 @@ and this project follows [Semantic Versioning](https://semver.org/).
+ 
+ ### Changed
+ 
++- **BREAKING:** Rust `ApproxSchurConfig::split` is now `NonZeroU32`, so a zero split factor cannot be constructed or deserialized. Python keeps its integer API and `ValueError` for zero; positive serialized values are unchanged (#426).
++
+ - **BREAKING:** `schwarz_precond::PartitionWeights::Uniform` is a unit variant; `PartitionWeights::len` and `is_empty` are removed. Uniform weights take their shape from `SubdomainCore::n_local`; only explicit weights carry a length. The serialized uniform variant no longer carries a count; the wire-format fixture moves v20 → v21; v20, v19 and v12 remain rejected-payload controls. The fixture number is not a runtime serialization envelope (#425).
+ 
+ - Levels with no cross-factor entries in a channel pair are batched into diagonal Schwarz subdomains per side instead of one subdomain each, cutting per-subdomain build and apply overhead without changing the preconditioner.
+diff --git a/crates/within-py/src/config.rs b/crates/within-py/src/config.rs
+index 7e280ba24c66a3435c58849a8306231637a789dc..7c38f509aceac698b0e8f22cfd2963e1f07478f4 100644
+--- a/crates/within-py/src/config.rs
++++ b/crates/within-py/src/config.rs
+@@ -7,6 +7,8 @@
+ // `#[pyclass(from_py_object)]` expands to `.clone()` on the `Copy` config classes.
+ #![allow(clippy::clone_on_copy)]
+ 
++use std::num::NonZeroU32;
++
+ use numpy::PyReadonlyArray1;
+ use pyo3::prelude::*;
+ 
+@@ -57,8 +59,7 @@ impl PyApproxCholConfig {
+ pub struct PyApproxSchurConfig {
+     #[pyo3(get)]
+     pub seed: u64,
+-    #[pyo3(get)]
+-    pub split: u32,
++    split: NonZeroU32,
+ }
+ 
+ #[pymethods]
+@@ -66,13 +67,16 @@ impl PyApproxSchurConfig {
+     #[new]
+     #[pyo3(signature = (seed=0, split=1))]
+     fn new(seed: u64, split: u32) -> PyResult<Self> {
+-        if split == 0 {
+-            return Err(pyo3::exceptions::PyValueError::new_err(
+-                "split must be >= 1",
+-            ));
+-        }
++        let split = NonZeroU32::new(split).ok_or_else(|| {
++            pyo3::exceptions::PyValueError::new_err("split must be >= 1")
++        })?;
+         Ok(Self { seed, split })
+     }
++
++    #[getter]
++    fn split(&self) -> u32 {
++        self.split.get()
++    }
+ }
+ 
+ impl PyApproxSchurConfig {
+diff --git a/crates/within/src/block_elim/schur.rs b/crates/within/src/block_elim/schur.rs
+index 8b64ba93f240f4d285967541000dc6cdd9643a0c..13c9f0470cf89c85d54919f9e23ce3d8f4e082cd 100644
+--- a/crates/within/src/block_elim/schur.rs
++++ b/crates/within/src/block_elim/schur.rs
+@@ -332,7 +332,7 @@ impl StarWorkspace {
+         Self {
+             edges: Vec::new(),
+             entries: Vec::new(),
+-            sampler: CliqueTreeSampler::new(config.seed, Some(config.split)),
++            sampler: CliqueTreeSampler::new(config.seed, Some(config.split.get())),
+         }
+     }
+ 
+diff --git a/crates/within/src/config.rs b/crates/within/src/config.rs
+index 6a1db8b1b4403dcafe8e1b52275f089b94ebfe9d..f4f312032cf96bfbb32188714814a76b69251992 100644
+--- a/crates/within/src/config.rs
++++ b/crates/within/src/config.rs
+@@ -7,6 +7,8 @@
+ //! change, caught mechanically by the cargo-semver-checks CI gate rather than
+ //! slipping through silently.
+ 
++use std::num::NonZeroU32;
++
+ use serde::{Deserialize, Serialize};
+ 
+ use crate::error::BuildError;
+@@ -127,17 +129,44 @@ impl Default for ScalingConfig {
+ }
+ 
+ /// Approximate Schur via GKS 2023 Algorithm 3: unbiased edge weights at O(deg) fill.
++///
++/// The split factor is nonzero in Rust as well as Python:
++///
++/// ```
++/// use std::num::NonZeroU32;
++/// use within::ApproxSchurConfig;
++///
++/// let config = ApproxSchurConfig {
++///     seed: 0,
++///     split: NonZeroU32::new(2).unwrap(),
++/// };
++/// let _ = config;
++/// ```
++///
++/// ```compile_fail
++/// use std::num::NonZeroU32;
++/// use within::ApproxSchurConfig;
++///
++/// let config = ApproxSchurConfig {
++///     seed: 0,
++///     split: 0,
++/// };
++/// let _ = config;
++/// ```
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+ pub struct ApproxSchurConfig {
+     /// Random seed for the clique-tree sampler.
+     pub seed: u64,
+     /// Star-edge split factor: `1` is standard, `k > 1` a denser approximation at more fill-in.
+-    pub split: u32,
++    pub split: NonZeroU32,
+ }
+ 
+ impl Default for ApproxSchurConfig {
+     fn default() -> Self {
+-        Self { seed: 0, split: 1 }
++        Self {
++            seed: 0,
++            split: NonZeroU32::MIN,
++        }
+     }
+ }
+ 
+@@ -192,3 +221,43 @@ impl Default for LsmrOptions {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::ApproxSchurConfig;
++    use rstest::rstest;
++    use std::num::NonZeroU32;
++
++    #[derive(serde::Serialize)]
++    struct LegacyApproxSchurConfig {
++        seed: u64,
++        split: u32,
++    }
++
++    #[test]
++    fn approximate_schur_default_is_standard_sampling() {
++        let config = ApproxSchurConfig::default();
++        assert_eq!(config.seed, 0);
++        assert_eq!(config.split.get(), 1);
++    }
++
++    #[rstest]
++    fn approximate_schur_positive_wire_bytes_are_unchanged(
++        #[values(0, 17, u64::MAX)] seed: u64,
++        #[values(1, 2, u32::MAX)] split: u32,
++    ) {
++        let legacy = LegacyApproxSchurConfig { seed, split };
++        let config = ApproxSchurConfig {
++            seed,
++            split: NonZeroU32::new(split).unwrap(),
++        };
++        let bytes = postcard::to_stdvec(&legacy).expect("serialize legacy fields");
++        assert_eq!(postcard::to_stdvec(&config).unwrap(), bytes);
++        assert_eq!(postcard::from_bytes::<ApproxSchurConfig>(&bytes).unwrap(), config);
++    }
++
++    #[test]
++    fn approximate_schur_rejects_zero_on_deserialization() {
++        assert!(postcard::from_bytes::<ApproxSchurConfig>(&[0, 0]).is_err());
++    }
++}
+diff --git a/crates/within/tests/solver.rs b/crates/within/tests/solver.rs
+index 24c0f4e55974a3da124895aa49bcccccfec2b20d..085ef501a9df97183d8a5cef0a274db9ffcee541 100644
+--- a/crates/within/tests/solver.rs
++++ b/crates/within/tests/solver.rs
+@@ -193,7 +193,10 @@ fn fully_specified_additive() -> PreconditionerConfig {
+                 seed: 41,
+                 split_merge: Some(3),
+             },
+-            schur: SchurMode::Approximate(ApproxSchurConfig { seed: 17, split: 2 }),
++            schur: SchurMode::Approximate(ApproxSchurConfig {
++                seed: 17,
++                split: std::num::NonZeroU32::new(2).unwrap(),
++            }),
+             dense_threshold: 0,
+             scaling: ScalingConfig {
+                 tolerance: 1e-7,
+diff --git a/tests/test_error_handling.py b/tests/test_error_handling.py
+index df0dff5545ef3911dd4f5098939e789c382c2ecd..ff86957187c038221930dc56fc92169ad63c82cf 100644
+--- a/tests/test_error_handling.py
++++ b/tests/test_error_handling.py
+@@ -106,7 +106,7 @@ class TestErrorHandling:
+ 
+     def test_approx_schur_config_split_zero_raises(self):
+         """ApproxSchurConfig(split=0) should raise ValueError."""
+-        with pytest.raises((ValueError, OverflowError)):
++        with pytest.raises(ValueError, match="^split must be >= 1$"):
+             ApproxSchurConfig(split=0)
+ 
+ 
+diff --git a/tests/test_preconditioner.py b/tests/test_preconditioner.py
+index 2bf42f01d5ed6f0318615f7c93cf5042b0638d42..496f2c2b5ac730afd89e808c1c946425095dc13b 100644
+--- a/tests/test_preconditioner.py
++++ b/tests/test_preconditioner.py
+@@ -87,6 +87,15 @@ class TestAdvancedConfigs:
+         assert cfg.seed == 0
+         assert cfg.split == 1
+ 
++    @pytest.mark.parametrize("split", [1, 2, 2**32 - 1])
++    def test_approx_schur_config_nonzero_split(self, split):
++        cfg = ApproxSchurConfig(seed=17, split=split)
++        assert cfg.seed == 17
++        assert cfg.split == split
++        assert repr(Schur.approximate(cfg)) == f"Schur.approximate(seed=17, split={split})"
++        with pytest.raises(AttributeError):
++            cfg.split = 0
++
+     def test_schur_complement_defaults(self):
+         sc = LocalSolverConfig()
+         assert sc.dense_threshold == 24
+@@ -179,7 +188,7 @@ class TestFePreconditioner:
+         assert precond.config == PreconditionerConfig.Additive()
+ 
+     def test_preconditioner_exposes_tuned_config(self, problem):
+-        cats, _ = problem
++        cats, y = problem
+         requested = PreconditionerConfig.Additive(
+             local_solver=LocalSolverConfig(
+                 approx_chol=ApproxCholConfig(seed=41, split_merge=3),
+@@ -201,6 +210,15 @@ class TestFePreconditioner:
+         assert actual.local_solver.dense_threshold == 0
+         assert actual.local_solver.scaling.on_failure == "warn"
+ 
++        restored = pickle.loads(pickle.dumps(precond))
++        assert restored.config == requested
++        vector = np.arange(precond.ncols, dtype=np.float64) + 0.25
++        np.testing.assert_array_equal(restored.apply(vector), precond.apply(vector))
++        expected = solver.solve(y)
++        reused = Solver(as_solver_categories(cats), preconditioner=restored).solve(y)
++        assert expected.converged and reused.converged
++        np.testing.assert_allclose(reused.x, expected.x, rtol=0, atol=1e-9)
++
+     def test_preconditioner_corrupt_bytes_raises(self):
+         with pytest.raises(ValueError):
+             Preconditioner(b"garbage")
