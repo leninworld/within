@@ -15,18 +15,20 @@
   "calibration_cpu": 3,
   "calibration_memory_gib": 12,
   "projection_factors": {
-    "coverage": 2.0,
+    "coverage": 6.0,
     "clippy": 1.0,
     "msrv": 1.5,
     "python_extension": 1.5,
     "release": 2.5,
     "semver": 3.0
   },
-  "projection_extra_seconds": 120,
+  "projection_extra_seconds": 150,
   "projection_multiplier": 1.1,
   "target_seconds": 3000,
   "absolute_seconds": 3600,
   "local_attempts_reopened": false,
-  "hosted_attempts": "one run plus at most one source-proven correction; no blind retries",
-  "privacy": "Only public official inputs and synthetic fixtures; no private cache or image export"
+  "hosted_attempts": "One source-proven correction after actual H486 productwirefixturefailure; this is finalattempt, no thirdrun",
+  "privacy": "Only public official inputs and synthetic fixtures; no private cache or image export",
+  "prior_run": 41184289673,
+  "coverage_projection_basis": "ActualH486 failedcoverage380.67s=4.4746*T_debug85.0744;6xreserve plus separatelymeasuredtests and10%margin; fullscope unchanged"
 }

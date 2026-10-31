@@ -143,6 +143,8 @@ try:
         result['projected_remaining_seconds'] = projected
         run('apply-core', ['git', 'apply', '--check', str(P / 'I1-core.patch')], 10)
         run('apply-core-once', ['git', 'apply', str(P / 'I1-core.patch')], 10)
+        run('apply-wire-check', ['git', 'apply', '--check', str(P / 'I2-wire.patch')], 10)
+        run('apply-wire-once', ['git', 'apply', str(P / 'I2-wire.patch')], 10)
         add_fixture_module(False)
         shutil.copy2(P / 'test_uniform_pickle.py', S / 'tests/test_uniform_pickle.py')
         changelog = S / 'CHANGELOG.md'
@@ -158,8 +160,8 @@ try:
             '- **BREAKING:** `schwarz_precond::PartitionWeights::Uniform` is a unit variant; '
             '`PartitionWeights::len` and `is_empty` are removed. Uniform weights take their '
             'shape from `SubdomainCore::n_local`; only explicit weights carry a length. '
-            'The serialized uniform variant no longer carries a count. New uniform wire '
-            'fixtures use v21; existing signed v20 fixtures remain compatibility controls. '
+            'The serialized uniform variant no longer carries a count; the wire-format fixtures move v20 → v21. New signed and uniform wire '
+            'fixtures use v21; signed v20, v19 and v12 remain rejected-payload controls. '
             'The fixture number is not a runtime serialization envelope (#425).\n', 1)
         changelog.write_text(text)
         shutil.copy2(R / 'preconditioner_uniform_v20.postcard',
@@ -174,13 +176,30 @@ try:
                                     '--locked', '--', '--ignored', '--nocapture'], 300)
         run('visible-candidate-fixture', ['git', 'add', '--intent-to-add',
             'crates/within/tests/fixtures/preconditioner_uniform_v21.postcard'], 10)
-        run('uniform-compatibility', ['cargo', 'test', '-p', 'within', '--lib',
+        _, uniform_output = run('uniform-compatibility', ['cargo', 'test', '-p', 'within', '--lib',
                                       'uniform_fixture_tests::', '--locked', '--', '--nocapture'], 90)
+        outcomes = re.findall(rb'OLD_UNIFORM_OUTCOME=(REJECTED|COMPATIBLE)', uniform_output)
+        assert len(outcomes) == 1
+        result['old_uniform_outcome'] = outcomes[0].decode()
+        assert not (S / 'crates/within/tests/fixtures/preconditioner_v21.postcard').exists(), 'SIGNED_V21_ALREADY_EXISTS'
+        run('generate-signed-v21', ['cargo', 'test', '-p', 'within', '--test',
+            'wire_format_fixture', 'regenerate_wire_format_fixture', '--locked',
+            '--', '--ignored', '--nocapture'], 120)
+        run('visible-signed-fixture', ['git', 'add', '--intent-to-add',
+            'crates/within/tests/fixtures/preconditioner_v21.postcard'], 10)
+        run('signed-compatibility', ['cargo', 'test', '-p', 'within', '--test',
+            'wire_format_fixture', '--locked', '--', '--nocapture'], 90)
+        result['fixture_sha256'] = {name: hashlib.sha256((S / 'crates/within/tests/fixtures' / name).read_bytes()).hexdigest()
+            for name in ('preconditioner_v21.postcard', 'preconditioner_uniform_v21.postcard',
+                         'preconditioner_v20.postcard', 'preconditioner_uniform_v20.postcard')} 
         run('rustfmt', ['cargo', 'fmt', '--all'], 45)
         run('rustfmt-check', ['cargo', 'fmt', '--all', '--', '--check'], 30)
         # Run the real project script unchanged, including its 94% floor.
-        run('coverage', ['bash', 'scripts/coverage-with-python.sh'], 900)
-        run('pickle-witness', ['python', str(P / 'pickle_demo.py'), 'candidate', str(R)], 30)
+        _, coverage_output = run('coverage', ['bash', 'scripts/coverage-with-python.sh'], 900)
+        result['coverage_output_tail'] = coverage_output.decode(errors='replace')[-10000:]
+        result['rust_test_result_lines'] = re.findall(r'^test result:.*$', coverage_output.decode(errors='replace'), re.M)
+        _, pickle_output = run('pickle-witness', ['python', str(P / 'pickle_demo.py'), 'candidate', str(R)], 30)
+        result['pickle_witness_output'] = pickle_output.decode(errors='replace')[-3000:]
         run('clippy', ['cargo', 'clippy', '--workspace', '--all-targets', '--all-features',
                        '--locked', '--', '-D', 'warnings'], 360)
         msrv = os.environ.copy()
@@ -219,6 +238,7 @@ try:
             'crates/within/src/operator/schwarz/uniform_fixture_tests.rs',
             'crates/within/tests/fixtures/preconditioner_uniform_v20.postcard',
             'crates/within/tests/fixtures/preconditioner_uniform_v21.postcard',
+            'crates/within/tests/fixtures/preconditioner_v21.postcard',
             'tests/test_uniform_pickle.py'], 10)
         _, paths = run('final-path-allowlist', ['git', 'diff', '--name-only', 'HEAD'], 10)
         expected = {'crates/schwarz-precond/src/domain.rs',
@@ -226,6 +246,8 @@ try:
                     'crates/within/src/operator/schwarz/uniform_fixture_tests.rs',
                     'crates/within/tests/fixtures/preconditioner_uniform_v20.postcard',
                     'crates/within/tests/fixtures/preconditioner_uniform_v21.postcard',
+                    'crates/within/tests/wire_format_fixture.rs',
+                    'crates/within/tests/fixtures/preconditioner_v21.postcard',
                     'tests/test_uniform_pickle.py', 'CHANGELOG.md'}
         assert set(paths.decode().splitlines()) == expected, 'FINAL_PATH_ALLOWLIST'
         _, patch = run('final-patch', ['git', 'diff', '--binary', 'HEAD'], 10)
