@@ -1,0 +1,33 @@
+{
+  "base": "7d9e6e28686df0007489d74edd653364e8f7e912",
+  "image": "python@sha256:e0b3f8d16a5ccfbe602d5c94297e5dbcda2ec256edca2b80fcd44e39e1ff6feb",
+  "wheel": {
+    "name": "ruff-0.9.10-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+    "url": "https://files.pythonhosted.org/packages/5b/01/85e8082e41585e0e1ceb11e41c054e9e36fed45f4b210991052d8a75089f/ruff-0.9.10-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+    "bytes": 10369760,
+    "sha256": "47678f39fa2a3da62724851107f438c8229a3470f533894b5568a39b40029c0c",
+    "requires_python": ">=3.7",
+    "requires_dist": null,
+    "license": "MIT",
+    "project_urls": {
+      "Changelog": "https://github.com/astral-sh/ruff/blob/main/CHANGELOG.md",
+      "Documentation": "https://docs.astral.sh/ruff/",
+      "Homepage": "https://docs.astral.sh/ruff",
+      "Repository": "https://github.com/astral-sh/ruff"
+    }
+  },
+  "patch_sha256": "a94a20aaa6f10fb39b45584ab00ee2c27971cf05dd21d3f62c6f50da1e581931",
+  "candidate_sha256": {
+    "CHANGELOG.md": "b8c817ebcad922dcf17caeaeda247ea3b5cea0128a66685a87c35f1a26d6a656",
+    "crates/within-py/src/config.rs": "2e5939cfa2a516b4fabfa49d6e31cdd0ef689e2d49a820245bd53eaa6fad901e",
+    "crates/within/src/block_elim/schur.rs": "d09e00b360639904aa9649e858d48f90f5877063c05eacd4b7ea5e354a28babf",
+    "crates/within/src/config.rs": "e6761caeb19d75e24532ee24043c2e71cbc5a5f5d7b2b22a3259398272e3456d",
+    "crates/within/tests/solver.rs": "b3d183768fc6e7fa4647747ee5cc78bfe99ba45b6dc71d183951b73e52a7eb72",
+    "tests/test_error_handling.py": "bb01edba4c8e39c7cfe06931fed985152cba9668a7e366858148c74a927e0cd5",
+    "tests/test_preconditioner.py": "d45b9365a8bceee55fa994f263ee70848aea2c4239fbcf6c2683882655f116e3"
+  },
+  "full_tested_patch_sha256": "2a7dab1405093ae26b018f42a9d60d93f671a987271c412eb8d2785af162617d",
+  "format_proof": "One wrappedPythonassertion, AST-identical; no fullrerunclaim",
+  "target_seconds": 180,
+  "absolute_seconds": 300
+}

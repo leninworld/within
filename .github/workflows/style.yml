@@ -1,0 +1,25 @@
+name: Check nonzero Schur split Python style
+on:
+  push:
+    branches: [validate-nonzero-schur-split-426-style]
+permissions:
+  contents: read
+jobs:
+  style:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+      - name: Anchor style clock
+        run: echo "STYLE_JOB_STARTED_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: packet
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: py-econometrics/within
+          ref: 7d9e6e28686df0007489d74edd653364e8f7e912
+          path: source
+          persist-credentials: false
+      - name: Check exact Python files in isolated Docker
+        run: python3 packet/host.py
