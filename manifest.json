@@ -27,7 +27,7 @@
   "target_seconds": 1800,
   "absolute_seconds": 2400,
   "local_attempts_reopened": false,
-  "hosted_attempts": "New explicit maintainer test-cleanup request, one candidate validation, at most one source-proven correction; old completed attempts remain closed",
+  "hosted_attempts": "FINAL source-proven correction after rustfmt-only stop41208885066; no third attempt; original14:40:23Z target14:50:23Zabsolute unchanged",
   "privacy": "Only public official inputs and synthetic fixtures; no private cache or image export",
   "prior_run": 41184289673,
   "coverage_projection_basis": "ActualH486 failedcoverage380.67s=4.4746*T_debug85.0744;6xreserve plus separatelymeasuredtests and10%margin; fullscope unchanged",
@@ -54,11 +54,12 @@
     "Cargo.toml": "b14f61df4b0932d9667f6f6beb8e5a021bc11b4b3cf799264b4ab28da723298d",
     "crates/within/Cargo.toml": "8563de31d71d52a43e233e1495ec2e13d463e00eab477f5cda6445af99031ac2"
   },
-  "cleanup_patch_sha256": "0f9f072f49d39875c6be22ed164d73c1b89bae82e9aeea62fd629154680c5207",
+  "cleanup_patch_sha256": "531344213614b13979e78a0f965bb80a06de32c15f4fd8b9b8305702f8bb8998",
   "proposed_sha256": {
     "CHANGELOG.md": "098d3893721d8dbc3ae6bb30700c58618969fd65f4284f400fb9eb172bd8ffd2",
     "crates/within/tests/wire_format_fixture.rs": "aa9346e368bcc2f1f73c3120e6867106d6745c5341da45004f0e7077d5e4c6ce",
     "crates/within/src/operator/schwarz.rs": "b20d78ecc7e5ea8c21dc98f475f8b253411b2568e900dd0d4b49636407518fad",
-    "crates/within/src/operator/schwarz/tests.rs": "4d86e5b43f2317cbf12a858cdc6b966fad2e1371f92f5fc056ffb622c33f9ed5"
-  }
+    "crates/within/src/operator/schwarz/tests.rs": "cf1812785bdafd4de11746dfada3772afc99d2f4a9ba356477735d4a11ca27bc"
+  },
+  "original_start_epoch": 1793455823
 }

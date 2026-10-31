@@ -11,7 +11,7 @@
  - **BREAKING:** `ReductionStrategy` is removed: the `reduction` field of `PreconditionerConfig::Additive` and `::Adaptive`, Python's `reduction=` argument and `within.config.ReductionStrategy`, and the strategy argument of `SchwarzPreconditioner::new`/`with_n_dofs` with its `reduction_strategy()` getter. Overlapping subdomain outputs always sum in subdomain order (#472).
 --- a/crates/within/src/operator/schwarz/tests.rs
 +++ b/crates/within/src/operator/schwarz/tests.rs
-@@ -239,3 +239,21 @@
+@@ -239,3 +239,23 @@
      );
      assert_ne!(exact, approximate);
  }
@@ -29,9 +29,11 @@
 +    let Variant::Additive(additive) = &preconditioner.inner else {
 +        panic!("signed fixture must be additive Schwarz");
 +    };
-+    assert!(additive.inner.subdomains().iter().any(|subdomain| {
-+        matches!(subdomain.partition_weights(), PartitionWeights::Uniform)
-+    }));
++    assert!(additive
++        .inner
++        .subdomains()
++        .iter()
++        .any(|subdomain| { matches!(subdomain.partition_weights(), PartitionWeights::Uniform) }));
 +}
 --- a/crates/within/src/operator/schwarz.rs
 +++ b/crates/within/src/operator/schwarz.rs

@@ -19,7 +19,8 @@ P = Path(__file__).resolve().parent
 SOURCE = P.parent / 'source'
 R = P.parent / 'runtime'
 M = json.loads((P / 'manifest.json').read_text())
-START_EPOCH = float(os.environ['VALIDATION_JOB_STARTED_EPOCH'])
+LAUNCH_EPOCH = float(os.environ['VALIDATION_JOB_STARTED_EPOCH'])
+START_EPOCH = M.get('original_start_epoch', LAUNCH_EPOCH)
 END = START_EPOCH + M['target_seconds']
 OWN = None
 LAST_SAMPLE = 0
@@ -162,7 +163,7 @@ def run_phase(phase, memory_gib):
 
 try:
     assert platform.machine() == 'aarch64' and os.getuid() == 1001
-    assert 0 <= time.time() - START_EPOCH < 300, 'STALE_JOB_START'
+    assert 0 <= time.time() - LAUNCH_EPOCH < 300, 'STALE_JOB_START'
     R.mkdir()
     for directory in ('inputs', 'home', 'tmp'):
         (R / directory).mkdir()
