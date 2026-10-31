@@ -1,0 +1,283 @@
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,7 +11,7 @@
+ 
+ ### Changed
+ 
+-- **BREAKING:** `schwarz_precond::PartitionWeights::Uniform` is a unit variant; `PartitionWeights::len` and `is_empty` are removed. Uniform weights take their shape from `SubdomainCore::n_local`; only explicit weights carry a length. The serialized uniform variant no longer carries a count; the wire-format fixtures move v20 → v21. New signed and uniform wire fixtures use v21; signed v20, v19 and v12 remain rejected-payload controls. The fixture number is not a runtime serialization envelope (#425).
++- **BREAKING:** `schwarz_precond::PartitionWeights::Uniform` is a unit variant; `PartitionWeights::len` and `is_empty` are removed. Uniform weights take their shape from `SubdomainCore::n_local`; only explicit weights carry a length. The serialized uniform variant no longer carries a count; the wire-format fixture moves v20 → v21; v20, v19 and v12 remain rejected-payload controls. The fixture number is not a runtime serialization envelope (#425).
+ 
+ - Levels with no cross-factor entries in a channel pair are batched into diagonal Schwarz subdomains per side instead of one subdomain each, cutting per-subdomain build and apply overhead without changing the preconditioner.
+ - **BREAKING:** `ReductionStrategy` is removed: the `reduction` field of `PreconditionerConfig::Additive` and `::Adaptive`, Python's `reduction=` argument and `within.config.ReductionStrategy`, and the strategy argument of `SchwarzPreconditioner::new`/`with_n_dofs` with its `reduction_strategy()` getter. Overlapping subdomain outputs always sum in subdomain order (#472).
+--- a/crates/within/src/operator/schwarz/tests.rs
++++ b/crates/within/src/operator/schwarz/tests.rs
+@@ -239,3 +239,21 @@
+     );
+     assert_ne!(exact, approximate);
+ }
++
++#[test]
++fn signed_wire_fixture_contains_uniform_weights() {
++    use crate::operator::schwarz::{Preconditioner, Variant};
++    use schwarz_precond::PartitionWeights;
++
++    let bytes = include_bytes!(concat!(
++        env!("CARGO_MANIFEST_DIR"),
++        "/tests/fixtures/preconditioner_v21.postcard"
++    ));
++    let preconditioner: Preconditioner = postcard::from_bytes(bytes).expect("signed fixture");
++    let Variant::Additive(additive) = &preconditioner.inner else {
++        panic!("signed fixture must be additive Schwarz");
++    };
++    assert!(additive.inner.subdomains().iter().any(|subdomain| {
++        matches!(subdomain.partition_weights(), PartitionWeights::Uniform)
++    }));
++}
+--- a/crates/within/src/operator/schwarz.rs
++++ b/crates/within/src/operator/schwarz.rs
+@@ -297,6 +297,3 @@
+     };
+     Ok((Some(preconditioner), warnings))
+ }
+-
+-#[cfg(test)]
+-mod uniform_fixture_tests;
+--- a/crates/within/tests/wire_format_fixture.rs
++++ b/crates/within/tests/wire_format_fixture.rs
+@@ -3,6 +3,7 @@
+ //! cross-version encoding shifts the same-build round-trip test cannot.
+ //! Regenerate via the `#[ignore]`d `regenerate_wire_format_fixture` test.
+ 
++use rstest::rstest;
+ use within::{Effect, LsmrOptions, Preconditioner, Solver};
+ 
+ #[path = "common/orchestrate_helpers.rs"]
+@@ -10,10 +11,7 @@
+ use common::additive;
+ 
+ const WIRE_FORMAT_VERSION: u32 = 21;
+-const PRECOND_FIXTURE_PATH: &str = concat!(
+-    env!("CARGO_MANIFEST_DIR"),
+-    "/tests/fixtures/preconditioner_v21.postcard"
+-);
++const PRECOND_BYTES: &[u8] = include_bytes!("fixtures/preconditioner_v21.postcard");
+ const PRE_BUMP_BYTES: &[u8] = include_bytes!("fixtures/preconditioner_v20.postcard");
+ const EARLIER_PRE_BUMP_BYTES: &[u8] = include_bytes!("fixtures/preconditioner_v19.postcard");
+ const RELEASE_0_3_0_BYTES: &[u8] = include_bytes!("fixtures/preconditioner_v12.postcard");
+@@ -39,9 +37,8 @@
+     let _ = WIRE_FORMAT_VERSION;
+ 
+     let (f, g, z, y) = fixture_problem();
+-    let bytes = std::fs::read(PRECOND_FIXTURE_PATH).expect("read fixture preconditioner");
+     let prebuilt: Preconditioner =
+-        postcard::from_bytes(&bytes).expect("deserialize fixture preconditioner");
++        postcard::from_bytes(PRECOND_BYTES).expect("deserialize fixture preconditioner");
+ 
+     let solver = Solver::new(fixture_effects(&f, &g, &z), None, prebuilt)
+         .expect("build solver from fixture");
+@@ -66,21 +63,44 @@
+     }
+ }
+ 
+-#[test]
+-fn signed_route_preconditioner_round_trips() {
++#[derive(Clone, Copy)]
++enum Shape {
++    Signed,
++    Uniform,
++}
++
++#[rstest]
++#[case::signed(Shape::Signed)]
++#[case::uniform(Shape::Uniform)]
++fn preconditioner_round_trips(#[case] shape: Shape) {
+     let (f, g, z, y) = fixture_problem();
+-    let solver1 = Solver::new(fixture_effects(&f, &g, &z), None, additive()).expect("build solver");
++    let effects = || match shape {
++        Shape::Signed => fixture_effects(&f, &g, &z),
++        Shape::Uniform => vec![
++            Effect::new(&f, true, []).expect("first intercept"),
++            Effect::new(&g, true, []).expect("second intercept"),
++        ],
++    };
++    let solver1 = Solver::new(effects(), None, additive()).expect("build solver");
+     let r1 = solver1.solve(&y, &LsmrOptions::default()).expect("solve 1");
+-
+-    let bytes = postcard::to_stdvec(solver1.preconditioner().expect("has preconditioner"))
+-        .expect("serialize");
++    let original = solver1.preconditioner().expect("has preconditioner");
++    let bytes = postcard::to_stdvec(original).expect("serialize");
+     let restored: Preconditioner = postcard::from_bytes(&bytes).expect("deserialize");
+     assert_eq!(restored.config(), additive());
++    assert_eq!(restored.nrows(), original.nrows());
++    assert_eq!(restored.ncols(), original.ncols());
+ 
+-    let solver2 =
+-        Solver::new(fixture_effects(&f, &g, &z), None, restored).expect("solver from round-trip");
++    let input: Vec<f64> = (0..original.ncols()).map(|i| i as f64 + 0.25).collect();
++    let mut before = vec![0.0; original.nrows()];
++    let mut after = vec![0.0; restored.nrows()];
++    original.apply(&input, &mut before).expect("original apply");
++    restored.apply(&input, &mut after).expect("restored apply");
++    assert_eq!(before, after);
++
++    let solver2 = Solver::new(effects(), None, restored).expect("solver from round-trip");
+     let r2 = solver2.solve(&y, &LsmrOptions::default()).expect("solve 2");
+-
++    assert!(r1.converged && r2.converged);
++    assert_eq!(r1.x.len(), r2.x.len());
+     for (a, b) in r1.x.iter().zip(r2.x.iter()) {
+         assert!(
+             (a - b).abs() < 1e-12,
+@@ -91,19 +111,12 @@
+     }
+ }
+ 
+-#[test]
+-fn pre_bump_fixture_no_longer_decodes() {
+-    assert!(postcard::from_bytes::<Preconditioner>(PRE_BUMP_BYTES).is_err());
+-}
+-
+-#[test]
+-fn earlier_pre_bump_fixture_no_longer_decodes() {
+-    assert!(postcard::from_bytes::<Preconditioner>(EARLIER_PRE_BUMP_BYTES).is_err());
+-}
+-
+-#[test]
+-fn release_0_3_0_fixture_no_longer_decodes() {
+-    assert!(postcard::from_bytes::<Preconditioner>(RELEASE_0_3_0_BYTES).is_err());
++#[rstest]
++#[case::v20(PRE_BUMP_BYTES)]
++#[case::v19(EARLIER_PRE_BUMP_BYTES)]
++#[case::release_0_3_0(RELEASE_0_3_0_BYTES)]
++fn legacy_fixture_no_longer_decodes(#[case] bytes: &[u8]) {
++    assert!(postcard::from_bytes::<Preconditioner>(bytes).is_err());
+ }
+ 
+ /// Generate the wire-format fixture. Run with `--ignored` to overwrite
+--- a/crates/within/src/operator/schwarz/uniform_fixture_tests.rs
++++ /dev/null
+@@ -1,123 +0,0 @@
+-use super::*;
+-use crate::{Effect, LsmrOptions, Solver};
+-use schwarz_precond::PartitionWeights;
+-
+-fn problem() -> (Vec<u32>, Vec<u32>, Vec<f64>) {
+-    (
+-        vec![0, 0, 0, 1, 1, 1],
+-        vec![0, 1, 2, 0, 1, 2],
+-        vec![1.0, -2.0, 0.5, 3.0, -1.5, 2.5],
+-    )
+-}
+-
+-fn effects<'a>(f: &'a [u32], g: &'a [u32]) -> Vec<Effect<'a>> {
+-    vec![
+-        Effect::new(f, true, []).expect("first intercept"),
+-        Effect::new(g, true, []).expect("second intercept"),
+-    ]
+-}
+-
+-fn config() -> PreconditionerConfig {
+-    PreconditionerConfig::Additive {
+-        local_solver: LocalSolverConfig::default(),
+-    }
+-}
+-
+-fn uniform_domains(preconditioner: &Preconditioner) {
+-    let Variant::Additive(additive) = &preconditioner.inner else {
+-        panic!("fixture must be additive Schwarz");
+-    };
+-    let subdomains = additive.inner.subdomains();
+-    assert_eq!(subdomains.len(), 1, "connected two-factor fixture");
+-    let mut counts = vec![0; preconditioner.nrows()];
+-    for subdomain in subdomains {
+-        assert!(!matches!(
+-            subdomain.partition_weights(),
+-            PartitionWeights::NonUniform(_)
+-        ));
+-        for (local, &global) in subdomain.global_indices().iter().enumerate() {
+-            counts[global as usize] += 1;
+-            assert_eq!(subdomain.partition_weights().get(local), 1.0);
+-        }
+-    }
+-    assert!(counts.iter().all(|&count| count == 1));
+-}
+-
+-fn fixture(name: &str) -> std::path::PathBuf {
+-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+-        .join("tests/fixtures")
+-        .join(name)
+-}
+-
+-fn equivalent(old: &Preconditioner, fresh: &Preconditioner) {
+-    assert_eq!(old.nrows(), fresh.nrows());
+-    assert_eq!(old.ncols(), fresh.ncols());
+-    assert_eq!(old.config(), fresh.config());
+-    uniform_domains(old);
+-    let input: Vec<f64> = (0..fresh.ncols()).map(|i| i as f64 + 0.25).collect();
+-    let mut before = vec![0.0; fresh.nrows()];
+-    let mut after = vec![0.0; fresh.nrows()];
+-    fresh.apply(&input, &mut before).expect("fresh apply");
+-    old.apply(&input, &mut after).expect("restored apply");
+-    assert_eq!(before.len(), after.len());
+-    for (a, b) in before.iter().zip(after.iter()) {
+-        assert!((a - b).abs() < 1e-12, "fixture apply drift: {a} vs {b}");
+-    }
+-    let (f, g, y) = problem();
+-    let a = Solver::new(effects(&f, &g), None, old.clone())
+-        .expect("restored solver")
+-        .solve(&y, &LsmrOptions::default())
+-        .expect("restored solve");
+-    let b = Solver::new(effects(&f, &g), None, fresh.clone())
+-        .expect("fresh solver")
+-        .solve(&y, &LsmrOptions::default())
+-        .expect("fresh solve");
+-    assert!(a.converged && b.converged);
+-    assert_eq!(a.x.len(), b.x.len());
+-    for (a, b) in a.x.iter().zip(b.x.iter()) {
+-        assert!((a - b).abs() < 1e-9, "fixture solve drift: {a} vs {b}");
+-    }
+-}
+-
+-#[test]
+-#[ignore = "explicit fixture generation only"]
+-fn regenerate_uniform_partition_fixture() {
+-    let version =
+-        std::env::var("WITHIN_UNIFORM_FIXTURE_VERSION").unwrap_or_else(|_| "21".to_owned());
+-    assert!(version == "20" || version == "21");
+-    let (f, g, _) = problem();
+-    let solver = Solver::new(effects(&f, &g), None, config()).expect("fixture solver");
+-    let preconditioner = solver.preconditioner().expect("Schwarz preconditioner");
+-    uniform_domains(preconditioner);
+-    let bytes = postcard::to_stdvec(preconditioner).expect("serialize fixture");
+-    let decoded: Preconditioner = postcard::from_bytes(&bytes).expect("same-build decode");
+-    equivalent(&decoded, preconditioner);
+-    let path = fixture(&format!("preconditioner_uniform_v{version}.postcard"));
+-    assert!(!path.exists(), "old fixtures must never be overwritten");
+-    std::fs::write(path, bytes).expect("write fixture");
+-}
+-
+-#[test]
+-fn uniform_fixture_deserializes_and_solves() {
+-    let bytes = std::fs::read(fixture("preconditioner_uniform_v21.postcard"))
+-        .expect("generated candidate fixture");
+-    let decoded: Preconditioner = postcard::from_bytes(&bytes).expect("candidate decode");
+-    let (f, g, _) = problem();
+-    let solver = Solver::new(effects(&f, &g), None, config()).expect("fresh fixture solver");
+-    equivalent(&decoded, solver.preconditioner().expect("fresh map"));
+-}
+-
+-#[test]
+-fn previous_uniform_fixture_must_not_silently_change_the_map() {
+-    let bytes = std::fs::read(fixture("preconditioner_uniform_v20.postcard"))
+-        .expect("unmodified-base fixture");
+-    match postcard::from_bytes::<Preconditioner>(&bytes) {
+-        Err(_) => eprintln!("OLD_UNIFORM_OUTCOME=REJECTED"),
+-        Ok(decoded) => {
+-            let (f, g, _) = problem();
+-            let solver = Solver::new(effects(&f, &g), None, config()).expect("fresh map");
+-            equivalent(&decoded, solver.preconditioner().expect("fresh map"));
+-            eprintln!("OLD_UNIFORM_OUTCOME=COMPATIBLE");
+-        }
+-    }
+-}

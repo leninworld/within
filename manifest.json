@@ -1,0 +1,64 @@
+{
+  "base": "94a497e7c6708c7c6ddd6a8e8f54f6f258f714f6",
+  "python_image": "python@sha256:e0b3f8d16a5ccfbe602d5c94297e5dbcda2ec256edca2b80fcd44e39e1ff6feb",
+  "rust_image": "rust@sha256:4334151ca823b4a52237f3a2d1b16973d6c3c0dd2a7e0ec66a9a8947713d4fa4",
+  "source_sha256": {
+    "Cargo.lock": "525b3330ed4dc739d0103f8431e1a4daadb3498ab06d63995293113bbaece68f",
+    "pixi.lock": "a076584950927eb3e053978e151b7bf30d943b295010be6d2d5999b677ed2337",
+    "pyproject.toml": "7e1cffb1946bf7c20eb28e60183ef2ef348a06ef32c5fe07cad37040adbf1463",
+    "scripts/coverage-with-python.sh": "9895f7b9f513f773d235fdf7a9bcc4189e8539ad05376b9e38942b05d215a212",
+    "crates/within/tests/fixtures/preconditioner_v20.postcard": "80895f1b51868290b5dd6b7b249cc328f92e0d542786c41e633299d4cd66a5c2",
+    "crates/within/tests/wire_format_fixture.rs": "57cd1ea4a707505d210da882a4120c1dfb6e576aca17f60424f135d3e49b5110"
+  },
+  "artifact_compressed_bytes": 337128751,
+  "artifact_unpacked_bytes": 1714623053,
+  "calibration_cpu": 3,
+  "calibration_memory_gib": 12,
+  "projection_factors": {
+    "coverage": 6.0,
+    "clippy": 1.0,
+    "msrv": 1.5,
+    "python_extension": 1.5,
+    "release": 2.5,
+    "semver": 3.0
+  },
+  "projection_extra_seconds": 150,
+  "projection_multiplier": 1.1,
+  "target_seconds": 1800,
+  "absolute_seconds": 2400,
+  "local_attempts_reopened": false,
+  "hosted_attempts": "New explicit maintainer test-cleanup request, one candidate validation, at most one source-proven correction; old completed attempts remain closed",
+  "privacy": "Only public official inputs and synthetic fixtures; no private cache or image export",
+  "prior_run": 41184289673,
+  "coverage_projection_basis": "ActualH486 failedcoverage380.67s=4.4746*T_debug85.0744;6xreserve plus separatelymeasuredtests and10%margin; fullscope unchanged",
+  "validation_scope": "Test cleanup only: full unchanged Rust+Python coverage94% floor, fmt/clippy/MSRV; unchanged production API/release/semver prior evidence reused",
+  "delete_sha256": {
+    "crates/within/tests/fixtures/preconditioner_uniform_v20.postcard": "5b3adbc66271d3e8a8144621038edfa9e709dc1feb59fd47c7d902943c12960a",
+    "crates/within/tests/fixtures/preconditioner_uniform_v21.postcard": "1c007ede14122870a80ee2dae4ca58687edf314e00b4561046c70ace51ee67c5"
+  },
+  "expected_paths": [
+    "CHANGELOG.md",
+    "crates/within/src/operator/schwarz/tests.rs",
+    "crates/within/src/operator/schwarz.rs",
+    "crates/within/tests/wire_format_fixture.rs",
+    "crates/within/src/operator/schwarz/uniform_fixture_tests.rs",
+    "crates/within/tests/fixtures/preconditioner_uniform_v20.postcard",
+    "crates/within/tests/fixtures/preconditioner_uniform_v21.postcard"
+  ],
+  "preserve_sha256": {
+    "crates/schwarz-precond/src/domain.rs": "713df6a6a3e8603a8421397a4dcf953758e09954da9266d7e5711e93a879e799",
+    "tests/test_uniform_pickle.py": "e3b90134330638c978f85cb8139d84c3485e4d0eeedab53e856447970de09789",
+    "crates/within/tests/fixtures/preconditioner_v21.postcard": "0c2ad5ac9b88b368ad50758334a9546678950317b23541c97ad19d8c9e9cfdd2",
+    "crates/within/tests/fixtures/preconditioner_v19.postcard": "0bcb4327e7d26a5bdf69a593c86b86f9eaf4e23c522c625985220add99474753",
+    "crates/within/tests/fixtures/preconditioner_v12.postcard": "a275875f52c36a5f44adfb63bf407b3a90a31ab563a56c4e6d2552c82595cb76",
+    "Cargo.toml": "b14f61df4b0932d9667f6f6beb8e5a021bc11b4b3cf799264b4ab28da723298d",
+    "crates/within/Cargo.toml": "8563de31d71d52a43e233e1495ec2e13d463e00eab477f5cda6445af99031ac2"
+  },
+  "cleanup_patch_sha256": "0f9f072f49d39875c6be22ed164d73c1b89bae82e9aeea62fd629154680c5207",
+  "proposed_sha256": {
+    "CHANGELOG.md": "098d3893721d8dbc3ae6bb30700c58618969fd65f4284f400fb9eb172bd8ffd2",
+    "crates/within/tests/wire_format_fixture.rs": "aa9346e368bcc2f1f73c3120e6867106d6745c5341da45004f0e7077d5e4c6ce",
+    "crates/within/src/operator/schwarz.rs": "b20d78ecc7e5ea8c21dc98f475f8b253411b2568e900dd0d4b49636407518fad",
+    "crates/within/src/operator/schwarz/tests.rs": "4d86e5b43f2317cbf12a858cdc6b966fad2e1371f92f5fc056ffb622c33f9ed5"
+  }
+}
